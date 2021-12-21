@@ -11,18 +11,19 @@ struct Edge
 	sf::Vector2f End;
 };
 
+
 class Polygon : public sf::Drawable {
 public:
-	Edge*		   Edges	  = nullptr;
+	Edge* Edges = nullptr;
 	const uint32_t EdgesCount = 0;
 
 	Polygon(uint32_t count) :
-		EdgesCount(count) 
+		EdgesCount(count)
 	{
-		Edges	   = new Edge[count];
+		Edges = new Edge[count];
 		m_vertices = new sf::Vertex[count + 1]; // We need to add one for last vertice
 	}
-	
+
 	~Polygon() {
 		delete[] m_vertices;
 		delete[] Edges;
@@ -32,10 +33,10 @@ private:
 	sf::Vertex* m_vertices = nullptr;
 
 	virtual void draw(sf::RenderTarget& target, sf::RenderStates states) const {
-		// Because one Edge has two variables which can use to define two separate Vertex 
+		// Because one Edge has two variables which can be used to define two separate Vertex 
 		// we can iterate every two
-		for (uint32_t i = 0; i <= EdgesCount - 1; i+=2) {
-			m_vertices[i]	  = Edges[i].Start;
+		for (uint32_t i = 0; i <= EdgesCount - 1; i += 2) {
+			m_vertices[i] = Edges[i].Start;
 			m_vertices[i + 1] = Edges[i].End;
 		}
 

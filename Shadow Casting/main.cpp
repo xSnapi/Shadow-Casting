@@ -10,8 +10,11 @@
 #include <SFML/Graphics.hpp>
 
 #include "Polygon.hpp"
+#include "Point.hpp"
 
-// uint32_t is basically "unsigned int" or just "unsigned" (they mean the same)
+#define SHADER_ON 1
+
+// uint32_t is basically "unsigned int" or just "unsigned" (they are the same)
 // i use it a lot so don't get scared
 constexpr uint32_t WINDOW_WIDTH  = 800;
 constexpr uint32_t WINDOW_HEIGHT = 800;
@@ -30,9 +33,30 @@ int main() {
 	std::vector<Edge> Edges;
 	InitEdges(Edges, Polygons);
 
-	sf::ContextSettings settings;
+	std::vector<Point> Points;
 
-	//TODO: add antyaliasing
+	// I know that SFML has build in class for it. I just like doing it on my own
+	std::vector<sf::Vertex> Vertices;
+	Vertices.reserve(500);
+
+	sf::Shader blurShader;
+	blurShader.loadFromFile("blurVert.shader", "blurFrag.shader");
+
+	sf::Shader shadowShader;
+	shadowShader.loadFromFile("shadowVert.shader", "shadowFrag.shader");
+
+	sf::RenderTexture castTexture;
+	castTexture.create(WINDOW_WIDTH, WINDOW_HEIGHT);
+	castTexture.setSmooth(true);
+
+	sf::RenderTexture shadowTexture;
+	shadowTexture.create(WINDOW_WIDTH, WINDOW_HEIGHT);
+	shadowTexture.setSmooth(true);
+
+	// Context Settings for antialiasing
+	sf::ContextSettings settings;
+	settings.antialiasingLevel = 8;
+
 	sf::RenderWindow window(sf::VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT), "Shadow Casting", sf::Style::Close, settings);
 	window.setFramerateLimit(144);
 
@@ -49,10 +73,91 @@ int main() {
 				break;
 			}
 		}
+		
+		sf::Vector2f mousePos(sf::Mouse::getPosition(window));
 
+		shadowShader.setUniform("u_mouse", mousePos);
 
+		Points.clear();
+		// TODO: opisaæ
+		// https://github.com/OneLoneCoder/olcPixelGameEngine/blob/master/Videos/OneLoneCoder_PGE_ShadowCasting2D.cpp
+		// Here maigc happens it's our algorithm
+		for (auto& e0 : Edges) {
+			for (uint32_t i = 0; i < 2; i++) {
+				sf::Vector2f rd;
+				rd = (!i ? e0.Start : e0.End) - mousePos;
 
-		window.clear();
+				float baseAng = atan2f(rd.y, rd.x);
+
+				float ang = 0.0f;
+
+				for (int j = 0; j < 3; j++) {
+					if (j == 0)	ang = baseAng - 0.0001f;
+					if (j == 1)	ang = baseAng;
+					if (j == 2)	ang = baseAng + 0.0001f;
+
+					rd.x = 100.0f * cosf(ang);
+					rd.y = 100.0f * sinf(ang);
+
+					sf::Vector2f minP;
+					float		 minT1	= 9999.0f;
+					float		 minAng = 0.0f;
+					bool		 valid	= false;
+
+					for (auto& e1 : Edges) {
+						sf::Vector2f sd = e1.End - e1.Start;
+
+						float t2 = (rd.x * (e1.Start.y - mousePos.y) + (rd.y * (mousePos.x - e1.Start.x))) / (sd.x * rd.y - sd.y * rd.x);
+
+						float t1 = (e1.Start.x + sd.x * t2 - mousePos.x) / rd.x;
+						
+						if (t1 > 0 && t2 >= 0 && t2 <= 1.0f) {
+							if (t1 < minT1) {
+								minT1  = t1;
+								minP   = mousePos + rd * t1;
+								minAng = atan2f(minP.y - mousePos.y, minP.x - mousePos.x);
+
+								valid  = true;
+							}
+						}
+					}
+
+					if (valid)
+						Points.emplace_back(sf::Vector2f(minP.x, minP.y),  minAng);
+				}
+			}
+		}
+
+		std::sort(Points.begin(), Points.end(), [&](const Point& a, const Point& b) { return a.Angle < b.Angle; });
+
+		window.clear(sf::Color(25, 94, 46));
+
+		castTexture.clear();
+		Vertices.clear();
+
+		// Center of triangle fan
+		Vertices.emplace_back(mousePos);
+
+		for (uint32_t i = 0; i < Points.size(); i++)
+			Vertices.emplace_back(Points[i].Pos);
+
+		if(!Points.empty())
+			Vertices.emplace_back(Points[0].Pos);
+
+		castTexture.draw(Vertices.data(), Vertices.size(), sf::TriangleFan);
+		castTexture.display();	
+
+		#if SHADER_ON
+			shadowTexture.clear();
+
+			shadowTexture.draw(sf::Sprite(castTexture.getTexture()), &blurShader);
+
+			shadowTexture.display();
+
+			window.draw(sf::Sprite(shadowTexture.getTexture()), &shadowShader);
+		#else
+			window.draw(sf::Sprite(castTexture.getTexture()));
+		#endif
 
 		// Drawing shapes
 		for (auto& p : Polygons)

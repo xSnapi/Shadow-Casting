@@ -11,6 +11,7 @@ project "Shadow Casting"
       "**.h", 
       "**.hpp",
 	  "**.cpp",
+	  "**.shader",
    }
 
    includedirs {
