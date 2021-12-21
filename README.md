@@ -2,7 +2,7 @@
 
 Simple implementation of shadow casting algorithm created using SFML.
 
-// images here
+![Shadows](https://github.com/xSnapi/Shadow-Casting/blob/master/Images/shadows.png?raw=true)
 
 # How to build?
 
