@@ -1,18 +1,18 @@
 /*
-	Shadow Casting implementation by Mateusz Kozdrowicki
-	currently working only with static shapes
-	but there is quick fix for that (maybe some day)
+	Simplest "Shadow Casting" implementation by Snapi
 */
 
 #include <iostream>
 #include <vector>
 #include <algorithm>
-#include <SFML/Graphics.hpp>
 
 #include "Polygon.hpp"
 #include "Point.hpp"
 
-#define SHADER_ON 1
+#include <SFML/Graphics.hpp>
+
+// Set to 1 to see how caster works with shaders
+#define SHADER_ON 0
 
 // uint32_t is basically "unsigned int" or just "unsigned" (they are the same)
 // i use it a lot so don't get scared
@@ -34,38 +34,33 @@ int main() {
 	InitEdges(Edges, Polygons);
 
 	std::vector<Point> Points;
+	Points.reserve(500);
 
 	// I know that SFML has build in class for it. I just like doing it on my own
 	std::vector<sf::Vertex> Vertices;
 	Vertices.reserve(500);
 
-	sf::Shader blurShader;
-	blurShader.loadFromFile("blurVert.shader", "blurFrag.shader");
-
 	sf::Shader shadowShader;
-	shadowShader.loadFromFile("shadowVert.shader", "shadowFrag.shader");
+	shadowShader.loadFromFile("shadow.vert", "shadow.frag");
+	shadowShader.setUniform("u_resolution", sf::Vector2f(WINDOW_WIDTH, WINDOW_HEIGHT));
 
 	sf::RenderTexture castTexture;
 	castTexture.create(WINDOW_WIDTH, WINDOW_HEIGHT);
 	castTexture.setSmooth(true);
 
-	sf::RenderTexture shadowTexture;
-	shadowTexture.create(WINDOW_WIDTH, WINDOW_HEIGHT);
-	shadowTexture.setSmooth(true);
-
 	// Context Settings for antialiasing
 	sf::ContextSettings settings;
 	settings.antialiasingLevel = 8;
+
 
 	sf::RenderWindow window(sf::VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT), "Shadow Casting", sf::Style::Close, settings);
 	window.setFramerateLimit(144);
 
 	sf::Event event;
 
-	// Main loop
+	// Here our application starts
 	while (window.isOpen()) {
 
-		// Simple pool event like always
 		while (window.pollEvent(event)) {
 			switch (event.type) {
 			case sf::Event::Closed:
@@ -79,19 +74,22 @@ int main() {
 		shadowShader.setUniform("u_mouse", mousePos);
 
 		Points.clear();
-		// TODO: opisaæ
+		// Here maigc happens it's our line casting algorithm
+		// It's author and better explanation can be found here
 		// https://github.com/OneLoneCoder/olcPixelGameEngine/blob/master/Videos/OneLoneCoder_PGE_ShadowCasting2D.cpp
-		// Here maigc happens it's our algorithm
+
 		for (auto& e0 : Edges) {
+			// Because we have two points in every edge we need to iterate through it like this
 			for (uint32_t i = 0; i < 2; i++) {
-				sf::Vector2f rd;
-				rd = (!i ? e0.Start : e0.End) - mousePos;
+				// Calculating vector between mouse and point of our edge
+				sf::Vector2f rd((!i ? e0.Start : e0.End) - mousePos);
 
 				float baseAng = atan2f(rd.y, rd.x);
 
 				float ang = 0.0f;
 
-				for (int j = 0; j < 3; j++) {
+				// For casting aditional rays
+				for (uint32_t j = 0; j < 3; j++) {
 					if (j == 0)	ang = baseAng - 0.0001f;
 					if (j == 1)	ang = baseAng;
 					if (j == 2)	ang = baseAng + 0.0001f;
@@ -105,6 +103,9 @@ int main() {
 					bool		 valid	= false;
 
 					for (auto& e1 : Edges) {
+						// Algorithm detecting vector crossing
+						// https://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect
+
 						sf::Vector2f sd = e1.End - e1.Start;
 
 						float t2 = (rd.x * (e1.Start.y - mousePos.y) + (rd.y * (mousePos.x - e1.Start.x))) / (sd.x * rd.y - sd.y * rd.x);
@@ -113,6 +114,8 @@ int main() {
 						
 						if (t1 > 0 && t2 >= 0 && t2 <= 1.0f) {
 							if (t1 < minT1) {
+								// If vectors cross we add thier intersection point to our vector 
+
 								minT1  = t1;
 								minP   = mousePos + rd * t1;
 								minAng = atan2f(minP.y - mousePos.y, minP.x - mousePos.x);
@@ -128,10 +131,12 @@ int main() {
 			}
 		}
 
+		// We need to sort our points based on thier angle to draw them correctly
 		std::sort(Points.begin(), Points.end(), [&](const Point& a, const Point& b) { return a.Angle < b.Angle; });
 
 		window.clear(sf::Color(25, 94, 46));
 
+		// Not sure about this part here maybe it can be done better
 		castTexture.clear();
 		Vertices.clear();
 
@@ -148,13 +153,7 @@ int main() {
 		castTexture.display();	
 
 		#if SHADER_ON
-			shadowTexture.clear();
-
-			shadowTexture.draw(sf::Sprite(castTexture.getTexture()), &blurShader);
-
-			shadowTexture.display();
-
-			window.draw(sf::Sprite(shadowTexture.getTexture()), &shadowShader);
+			window.draw(sf::Sprite(castTexture.getTexture()), &shadowShader);
 		#else
 			window.draw(sf::Sprite(castTexture.getTexture()));
 		#endif
@@ -173,7 +172,7 @@ void InitPolygons(std::vector<Polygon>& Polygons) {
 	// Because of heap allocation in our Polygon class we need to 
 	// reserve how many objects we want in our vector to avoid copy constructors
 
-	Polygons.reserve(8); // <- 8 means 8 shapes (it's always better to reserve more then less)
+	Polygons.reserve(8); // <- it means 8 shapes (it's always better to reserve more then less)
 
 	// Square 0
 	{
@@ -228,6 +227,8 @@ void InitPolygons(std::vector<Polygon>& Polygons) {
 }
 
 void InitEdges(std::vector<Edge>& Edges, std::vector<Polygon>& Polygons) {
+	Edges.reserve(50);
+
 	for (auto& p : Polygons)
 		for (uint32_t i = 0; i < p.EdgesCount; i++)
 			Edges.push_back(p.Edges[i]);

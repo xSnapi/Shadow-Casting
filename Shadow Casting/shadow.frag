@@ -1,19 +1,20 @@
 #version 330 core
 
-uniform sampler2D texture;
+precision mediump float;
 
 layout(location = 0) out vec4 color;
 
 in vec2 i_tex;
 
+uniform sampler2D texture;
+
 uniform vec2 u_mouse;
+uniform vec2 u_resolution;
 
-const vec2 resolution = vec2(800.0, 800.0);
+void main() {
+	vec2 uv	   = gl_FragCoord.xy / u_resolution;
+	vec2 mouse = u_mouse		 / u_resolution;
 
-void main()
-{
-	vec2 uv		 = gl_FragCoord.xy / resolution;
-	vec2 mouse = u_mouse / resolution;
 	mouse.y    = 1.0 - mouse.y;
 
 	vec4 pixel = texture2D(texture, i_tex);

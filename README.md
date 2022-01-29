@@ -2,6 +2,10 @@
 
 Simple implementation of shadow casting algorithm created using SFML.
 
+## Without Shaders
+![ShadowsNoShader](https://github.com/xSnapi/Shadow-Casting/blob/master/Images/shadows_no_shader.png?raw=true)
+
+## With Shaders
 ![Shadows](https://github.com/xSnapi/Shadow-Casting/blob/master/Images/shadows.png?raw=true)
 
 # How to build?

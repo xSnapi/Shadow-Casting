@@ -1,9 +1,16 @@
 #pragma once
+
+/*
+	Polygon.hpp
+	Graphic representation of polygon
+*/
+
+#include <cstdint>
+
 #include <SFML/Graphics/RenderTarget.hpp>
 #include <SFML/Graphics/Drawable.hpp>
 #include <SFML/Graphics/Vertex.hpp>
 #include <SFML/System/Vector2.hpp>
-#include <cstdint>
 
 struct Edge 
 {
@@ -11,11 +18,10 @@ struct Edge
 	sf::Vector2f End;
 };
 
-
 class Polygon : public sf::Drawable {
 public:
-	Edge* Edges = nullptr;
-	const uint32_t EdgesCount = 0;
+	Edge*			Edges		= nullptr;
+	const uint32_t  EdgesCount  = 0;
 
 	Polygon(uint32_t count) :
 		EdgesCount(count)

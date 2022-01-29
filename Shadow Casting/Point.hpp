@@ -11,9 +11,9 @@ struct Point
 
 	}
 
-	Point(sf::Vector2f pos, float ang) :
-		Pos(pos),
-		Angle(ang)
+	Point(sf::Vector2f pos, float ang) 
+		: Pos(pos)
+		, Angle(ang)
 	{
 
 	}
